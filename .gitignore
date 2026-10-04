@@ -1,0 +1,80 @@
+# .gitignore for seat-reservation (Maven + Spring Boot + Eclipse)
+# Keep mvnw and .mvn/wrapper jar in the repo for reproducible builds.
+
+# Project docs
+HELP.md
+
+# === Build / runtime ===
+/target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven wrapper - keep mvnw and wrapper jar; ignore temporary generated wrapper properties
+/.mvn/wrapper/maven-wrapper.properties
+
+# === Eclipse / STS ===
+.classpath
+.project
+.factorypath
+.settings/
+.springBeans
+.sts4-cache
+bin/
+
+# === IntelliJ IDEA ===
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# === NetBeans ===
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# === VS Code ===
+.vscode/
+
+# === macOS / Windows OS files ===
+.DS_Store
+Thumbs.db
+
+# === Logs / temporary files ===
+*.log
+logs/
+tmp/
+*.tmp
+
+# === Generated sources, caches, tool outputs ===
+generated-sources/
+generated-test-sources/
+.cache/
+
+# === Credentials & secrets (do NOT commit) ===
+.env
+.env.local
+*.keystore
+*.jks
+*.pem
+
+# === Database / local state ===
+*.db
+*.sqlite
+data/
+
+# === Editor swap / backup files ===
+*.swp
+*.swo
+*.bak
+*.orig
+
+# Keep source-controlled resources like Flyway migrations. DO NOT ignore:
+# src/main/resources/db/
+# src/main/resources/application.properties  (only ignore if it contains secrets)
+
