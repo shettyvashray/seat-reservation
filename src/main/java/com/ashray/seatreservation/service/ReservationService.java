@@ -1,0 +1,106 @@
+package com.ashray.seatreservation.service;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ashray.seatreservation.dto.ReservationResponse;
+import com.ashray.seatreservation.dto.ReserveSeatRequest;
+import com.ashray.seatreservation.entity.Reservation;
+import com.ashray.seatreservation.entity.ReservationStatus;
+import com.ashray.seatreservation.entity.Seat;
+import com.ashray.seatreservation.entity.SeatStatus;
+import com.ashray.seatreservation.entity.Show;
+import com.ashray.seatreservation.exception.SeatNotFoundException;
+import com.ashray.seatreservation.exception.SeatTakenException;
+import com.ashray.seatreservation.exception.ShowNotFoundException;
+import com.ashray.seatreservation.repository.ReservationRepository;
+import com.ashray.seatreservation.repository.SeatRepository;
+import com.ashray.seatreservation.repository.ShowRepository;
+
+@Service
+public class ReservationService {
+
+	private final ShowRepository showRepository;
+	private final SeatRepository seatRepository;
+	private final ReservationRepository reservationRepository;
+
+	public ReservationService(ShowRepository showRepository, SeatRepository seatRepository,
+			ReservationRepository reservationRepository) {
+		this.showRepository = showRepository;
+		this.seatRepository = seatRepository;
+		this.reservationRepository = reservationRepository;
+	}
+
+	@Transactional
+	public ReservationResponse reserve(UUID showId, String userId, ReserveSeatRequest request) {
+
+		// Find the show
+		Show show = showRepository.findById(showId).orElseThrow(ShowNotFoundException::new);
+
+		// Sort seats to get them in the same order
+		List<String> requestedSeats = request.seats().stream().distinct().sorted().toList();
+
+		// Lock all requested seats.
+		List<Seat> seats = seatRepository.findSeatsForUpdate(showId, requestedSeats);
+
+		// Check if all seats are present
+		if (seats.size() != requestedSeats.size()) {
+			for (String requestedSeat : requestedSeats) {
+				boolean exists = seats.stream().anyMatch(seat -> seat.getSeatNumber().equals(requestedSeat));
+				
+				if (!exists) {
+					throw new SeatNotFoundException(requestedSeat);
+				}
+			}
+		}
+
+		// Check all seat status
+		for (Seat seat : seats) {
+			if (seat.getStatus() != SeatStatus.AVAILABLE) {
+				throw new SeatTakenException(seat.getSeatNumber());
+			}
+		}
+
+		// Create reservation
+		Reservation reservation = new Reservation();
+		
+		UUID reservationId = UUID.randomUUID();
+		
+		reservation.setId(reservationId);
+		reservation.setShowId(showId);
+		reservation.setUserId(userId);
+
+		long amount = show.getPricePaise() * requestedSeats.size();
+
+		reservation.setAmountPaise(amount);
+		reservation.setStatus(ReservationStatus.CONFIRMED);
+
+		reservation.setIdempotencyKey("checkpoint-4-" + reservationId);
+
+		reservation.setRequestHash("checkpoint-4");
+
+		OffsetDateTime now = OffsetDateTime.now();
+
+		reservation.setCreatedAt(now);
+		reservation.setUpdatedAt(now);
+
+		reservationRepository.save(reservation);
+
+		// Mark seats as confirmed
+		for (Seat seat : seats) {
+			seat.setStatus(SeatStatus.CONFIRMED);
+			seat.setReservationId(reservationId);
+			seat.setUpdatedAt(now);
+		}
+
+		seatRepository.saveAll(seats);
+
+		
+		// Return result
+		return new ReservationResponse(reservationId, showId, userId, requestedSeats, amount, "confirmed");
+	}
+}
