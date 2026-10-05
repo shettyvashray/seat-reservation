@@ -14,12 +14,14 @@ import com.ashray.seatreservation.entity.ReservationStatus;
 import com.ashray.seatreservation.entity.Seat;
 import com.ashray.seatreservation.entity.SeatStatus;
 import com.ashray.seatreservation.entity.Show;
+import com.ashray.seatreservation.exception.PerUserLimitExceededException;
 import com.ashray.seatreservation.exception.SeatNotFoundException;
 import com.ashray.seatreservation.exception.SeatTakenException;
 import com.ashray.seatreservation.exception.ShowNotFoundException;
 import com.ashray.seatreservation.repository.ReservationRepository;
 import com.ashray.seatreservation.repository.SeatRepository;
 import com.ashray.seatreservation.repository.ShowRepository;
+import com.ashray.seatreservation.repository.ShowUserLockRepository;
 
 @Service
 public class ReservationService {
@@ -27,12 +29,14 @@ public class ReservationService {
 	private final ShowRepository showRepository;
 	private final SeatRepository seatRepository;
 	private final ReservationRepository reservationRepository;
+	private final ShowUserLockRepository showUserLockRepository;
 
 	public ReservationService(ShowRepository showRepository, SeatRepository seatRepository,
-			ReservationRepository reservationRepository) {
+			ReservationRepository reservationRepository, ShowUserLockRepository showUserLockRepository) {
 		this.showRepository = showRepository;
 		this.seatRepository = seatRepository;
 		this.reservationRepository = reservationRepository;
+		this.showUserLockRepository = showUserLockRepository;
 	}
 
 	@Transactional
@@ -44,6 +48,20 @@ public class ReservationService {
 		// Sort seats to get them in the same order
 		List<String> requestedSeats = request.seats().stream().distinct().sorted().toList();
 
+		// Create lock for show user limit
+		showUserLockRepository.createIfAbsent(showId, userId);
+
+		// Acquire lock for show user limit
+		showUserLockRepository.findForUpdate(showId, userId)
+				.orElseThrow(() -> new IllegalStateException("Unable to acquire user/show lock"));
+
+		// Enforce per user limit
+		long currentSeatCount = reservationRepository.countConfirmedSeatsForUser(showId, userId);
+
+		if (currentSeatCount + requestedSeats.size() > show.getPerUserLimit()) {
+			throw new PerUserLimitExceededException(show.getPerUserLimit());
+		}
+
 		// Lock all requested seats.
 		List<Seat> seats = seatRepository.findSeatsForUpdate(showId, requestedSeats);
 
@@ -51,7 +69,7 @@ public class ReservationService {
 		if (seats.size() != requestedSeats.size()) {
 			for (String requestedSeat : requestedSeats) {
 				boolean exists = seats.stream().anyMatch(seat -> seat.getSeatNumber().equals(requestedSeat));
-				
+
 				if (!exists) {
 					throw new SeatNotFoundException(requestedSeat);
 				}
@@ -67,9 +85,9 @@ public class ReservationService {
 
 		// Create reservation
 		Reservation reservation = new Reservation();
-		
+
 		UUID reservationId = UUID.randomUUID();
-		
+
 		reservation.setId(reservationId);
 		reservation.setShowId(showId);
 		reservation.setUserId(userId);
@@ -99,7 +117,6 @@ public class ReservationService {
 
 		seatRepository.saveAll(seats);
 
-		
 		// Return result
 		return new ReservationResponse(reservationId, showId, userId, requestedSeats, amount, "confirmed");
 	}

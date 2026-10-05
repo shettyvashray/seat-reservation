@@ -26,6 +26,12 @@ public class GlobalExceptionHandler {
 		return new ErrorResponse("SHOW_NOT_FOUND", exception.getMessage());
 	}
 
+	@ExceptionHandler(PerUserLimitExceededException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponse handlePerUserLimit(PerUserLimitExceededException exception) {
+		return new ErrorResponse("PER_USER_LIMIT_EXCEEDED", exception.getMessage());
+	}
+
 	public record ErrorResponse(String code, String message) {
 	}
 }
