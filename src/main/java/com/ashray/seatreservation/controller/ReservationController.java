@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ashray.seatreservation.dto.CancelReservationResponse;
 import com.ashray.seatreservation.dto.ReservationResponse;
 import com.ashray.seatreservation.dto.ReserveSeatRequest;
 import com.ashray.seatreservation.service.ReservationService;
@@ -32,5 +33,12 @@ public class ReservationController {
 	public ReservationResponse reserve(@PathVariable UUID showId, @RequestHeader("X-User-Id") String userId,
 			@RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody ReserveSeatRequest request) {
 		return reservationService.reserve(showId, userId, request, idempotencyKey);
+	}
+
+	@PostMapping("/reservations/{reservationId}/cancel")
+	@ResponseStatus(HttpStatus.OK)
+	public CancelReservationResponse cancel(@PathVariable UUID reservationId,
+			@RequestHeader("X-User-Id") String userId) {
+		return reservationService.cancel(reservationId, userId);
 	}
 }

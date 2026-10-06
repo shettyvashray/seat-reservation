@@ -33,4 +33,13 @@ public interface SeatRepository extends JpaRepository<Seat, UUID> {
 			    ORDER BY s.seatNumber
 			""")
 	List<String> findSeatNumbersByReservationId(@Param("reservationId") UUID reservationId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("""
+			    SELECT s
+			    FROM Seat s
+			    WHERE s.reservationId = :reservationId
+			    ORDER BY s.seatNumber
+			""")
+	List<Seat> findSeatsForReservationForUpdate(@Param("reservationId") UUID reservationId);
 }

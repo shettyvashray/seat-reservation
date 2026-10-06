@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ashray.seatreservation.dto.CancelReservationResponse;
 import com.ashray.seatreservation.dto.ReservationResponse;
 import com.ashray.seatreservation.dto.ReserveSeatRequest;
 import com.ashray.seatreservation.entity.Reservation;
@@ -16,7 +17,11 @@ import com.ashray.seatreservation.entity.Seat;
 import com.ashray.seatreservation.entity.SeatStatus;
 import com.ashray.seatreservation.entity.Show;
 import com.ashray.seatreservation.exception.IdempotencyConflictException;
+import com.ashray.seatreservation.exception.IdempotencyKeyAlreadyCancelledException;
 import com.ashray.seatreservation.exception.PerUserLimitExceededException;
+import com.ashray.seatreservation.exception.ReservationNotCancellableException;
+import com.ashray.seatreservation.exception.ReservationNotFoundException;
+import com.ashray.seatreservation.exception.ReservationNotOwnedException;
 import com.ashray.seatreservation.exception.SeatNotFoundException;
 import com.ashray.seatreservation.exception.SeatTakenException;
 import com.ashray.seatreservation.exception.ShowNotFoundException;
@@ -73,6 +78,10 @@ public class ReservationService {
 
 			if (!reservation.getRequestHash().equals(requestHash)) {
 				throw new IdempotencyConflictException();
+			}
+
+			if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+				throw new IdempotencyKeyAlreadyCancelledException();
 			}
 
 			List<String> existingSeats = seatRepository.findSeatNumbersByReservationId(reservation.getId());
@@ -144,5 +153,41 @@ public class ReservationService {
 
 		// Return result
 		return new ReservationResponse(reservationId, showId, userId, requestedSeats, amount, "confirmed");
+	}
+
+	@Transactional
+	public CancelReservationResponse cancel(UUID reservationId, String userId) {
+
+		Reservation reservation = reservationRepository.findByIdForUpdate(reservationId)
+				.orElseThrow(() -> new ReservationNotFoundException(reservationId));
+
+		if (!reservation.getUserId().equals(userId)) {
+			throw new ReservationNotOwnedException();
+		}
+
+		if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
+			throw new ReservationNotCancellableException();
+		}
+
+		List<Seat> seats = seatRepository.findSeatsForReservationForUpdate(reservationId);
+
+		OffsetDateTime now = OffsetDateTime.now();
+
+		for (Seat seat : seats) {
+			seat.setStatus(SeatStatus.AVAILABLE);
+			seat.setReservationId(null);
+			seat.setUpdatedAt(now);
+		}
+
+		reservation.setStatus(ReservationStatus.CANCELLED);
+		reservation.setUpdatedAt(now);
+
+		seatRepository.saveAll(seats);
+		reservationRepository.save(reservation);
+
+		List<String> seatNumbers = seats.stream().map(Seat::getSeatNumber).sorted().toList();
+
+		return new CancelReservationResponse(reservation.getId(), reservation.getShowId(), reservation.getUserId(),
+				seatNumbers, reservation.getAmountPaise(), reservation.getStatus().name());
 	}
 }

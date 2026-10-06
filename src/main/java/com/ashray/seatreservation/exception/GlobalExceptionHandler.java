@@ -38,6 +38,30 @@ public class GlobalExceptionHandler {
 		return new ErrorResponse("IDEMPOTENCY_CONFLICT", exception.getMessage());
 	}
 
+	@ExceptionHandler(ReservationNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponse handleReservationNotFound(ReservationNotFoundException exception) {
+		return new ErrorResponse("RESERVATION_NOT_FOUND", exception.getMessage());
+	}
+
+	@ExceptionHandler(ReservationNotOwnedException.class)
+	@ResponseStatus(HttpStatus.FORBIDDEN)
+	public ErrorResponse handleReservationNotOwned(ReservationNotOwnedException exception) {
+		return new ErrorResponse("RESERVATION_NOT_OWNED", exception.getMessage());
+	}
+
+	@ExceptionHandler(ReservationNotCancellableException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponse handleReservationNotCancellable(ReservationNotCancellableException exception) {
+		return new ErrorResponse("RESERVATION_NOT_CANCELLABLE", exception.getMessage());
+	}
+
+	@ExceptionHandler(IdempotencyKeyAlreadyCancelledException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponse handleCancelledIdempotencyKey(IdempotencyKeyAlreadyCancelledException exception) {
+		return new ErrorResponse("IDEMPOTENCY_KEY_CANCELLED", exception.getMessage());
+	}
+
 	public record ErrorResponse(String code, String message) {
 	}
 }
