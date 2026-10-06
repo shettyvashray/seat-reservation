@@ -13,6 +13,7 @@ import com.ashray.seatreservation.dto.ShowResponse;
 import com.ashray.seatreservation.entity.Seat;
 import com.ashray.seatreservation.entity.SeatStatus;
 import com.ashray.seatreservation.entity.Show;
+import com.ashray.seatreservation.exception.ShowNotFoundException;
 import com.ashray.seatreservation.repository.SeatRepository;
 import com.ashray.seatreservation.repository.ShowRepository;
 
@@ -61,7 +62,7 @@ public class ShowService {
 	@Transactional(readOnly = true)
 	public ShowResponse getShow(UUID showId) {
 
-		Show show = showRepository.findById(showId).orElseThrow(() -> new RuntimeException("Show not found"));
+		Show show = showRepository.findById(showId).orElseThrow(() -> new ShowNotFoundException());
 
 		List<Seat> seats = seatRepository.findByShowIdOrderBySeatNumber(showId);
 
