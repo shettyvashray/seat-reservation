@@ -30,8 +30,7 @@ public class ReservationController {
 	@PostMapping("/{showId}/reserve")
 	@ResponseStatus(HttpStatus.CREATED)
 	public ReservationResponse reserve(@PathVariable UUID showId, @RequestHeader("X-User-Id") String userId,
-			@Valid @RequestBody ReserveSeatRequest request) {
-
-		return reservationService.reserve(showId, userId, request);
+			@RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody ReserveSeatRequest request) {
+		return reservationService.reserve(showId, userId, request, idempotencyKey);
 	}
 }

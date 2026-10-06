@@ -32,6 +32,12 @@ public class GlobalExceptionHandler {
 		return new ErrorResponse("PER_USER_LIMIT_EXCEEDED", exception.getMessage());
 	}
 
+	@ExceptionHandler(IdempotencyConflictException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponse handleIdempotencyConflict(IdempotencyConflictException exception) {
+		return new ErrorResponse("IDEMPOTENCY_CONFLICT", exception.getMessage());
+	}
+
 	public record ErrorResponse(String code, String message) {
 	}
 }
