@@ -3,6 +3,7 @@ package com.ashray.seatreservation.controller;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,15 +31,17 @@ public class ReservationController {
 
 	@PostMapping("/{showId}/reserve")
 	@ResponseStatus(HttpStatus.CREATED)
-	public ReservationResponse reserve(@PathVariable UUID showId, @RequestHeader("X-User-Id") String userId,
-			@RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody ReserveSeatRequest request) {
+	public ReservationResponse reserve(@PathVariable UUID showId,
+			@RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody ReserveSeatRequest request,
+			Authentication authentication) {
+		String userId = authentication.getName();
 		return reservationService.reserve(showId, userId, request, idempotencyKey);
 	}
 
 	@PostMapping("/reservations/{reservationId}/cancel")
 	@ResponseStatus(HttpStatus.OK)
-	public CancelReservationResponse cancel(@PathVariable UUID reservationId,
-			@RequestHeader("X-User-Id") String userId) {
+	public CancelReservationResponse cancel(@PathVariable UUID reservationId, Authentication authentication) {
+		String userId = authentication.getName();
 		return reservationService.cancel(reservationId, userId);
 	}
 }
