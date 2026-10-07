@@ -78,3 +78,6 @@ data/
 # src/main/resources/db/
 # src/main/resources/application.properties  (only ignore if it contains secrets)
 
+burst/.venv/
+__pycache__/
+*.pyc
