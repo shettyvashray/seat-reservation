@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.ashray.seatreservation.entity.Seat;
+import com.ashray.seatreservation.entity.SeatStatus;
 
 import jakarta.persistence.LockModeType;
 
@@ -42,4 +43,11 @@ public interface SeatRepository extends JpaRepository<Seat, UUID> {
 			    ORDER BY s.seatNumber
 			""")
 	List<Seat> findSeatsForReservationForUpdate(@Param("reservationId") UUID reservationId);
+
+	@Query("""
+			    SELECT COUNT(s)
+			    FROM Seat s
+			    WHERE s.status = :status
+			""")
+	long countByStatus(@Param("status") SeatStatus status);
 }

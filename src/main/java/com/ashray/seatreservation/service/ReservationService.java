@@ -25,6 +25,7 @@ import com.ashray.seatreservation.exception.ReservationNotOwnedException;
 import com.ashray.seatreservation.exception.SeatNotFoundException;
 import com.ashray.seatreservation.exception.SeatTakenException;
 import com.ashray.seatreservation.exception.ShowNotFoundException;
+import com.ashray.seatreservation.metrics.ReservationMetrics;
 import com.ashray.seatreservation.repository.ReservationRepository;
 import com.ashray.seatreservation.repository.SeatRepository;
 import com.ashray.seatreservation.repository.ShowRepository;
@@ -38,15 +39,17 @@ public class ReservationService {
 	private final ReservationRepository reservationRepository;
 	private final ShowUserLockRepository showUserLockRepository;
 	private final RequestHashService requestHashService;
+	private final ReservationMetrics reservationMetrics;
 
 	public ReservationService(ShowRepository showRepository, SeatRepository seatRepository,
 			ReservationRepository reservationRepository, ShowUserLockRepository showUserLockRepository,
-			RequestHashService requestHashService) {
+			RequestHashService requestHashService, ReservationMetrics reservationMetrics) {
 		this.showRepository = showRepository;
 		this.seatRepository = seatRepository;
 		this.reservationRepository = reservationRepository;
 		this.showUserLockRepository = showUserLockRepository;
 		this.requestHashService = requestHashService;
+		this.reservationMetrics = reservationMetrics;
 	}
 
 	@Transactional
@@ -77,12 +80,15 @@ public class ReservationService {
 			Reservation reservation = existingReservation.get();
 
 			if (!reservation.getRequestHash().equals(requestHash)) {
+				reservationMetrics.idempotencyConflict();
 				throw new IdempotencyConflictException();
 			}
 
 			if (reservation.getStatus() == ReservationStatus.CANCELLED) {
 				throw new IdempotencyKeyAlreadyCancelledException();
 			}
+
+			reservationMetrics.idempotentReplay();
 
 			List<String> existingSeats = seatRepository.findSeatNumbersByReservationId(reservation.getId());
 
@@ -94,6 +100,7 @@ public class ReservationService {
 		long currentSeatCount = reservationRepository.countConfirmedSeatsForUser(showId, userId);
 
 		if (currentSeatCount + requestedSeats.size() > show.getPerUserLimit()) {
+			reservationMetrics.perUserLimitExceeded();
 			throw new PerUserLimitExceededException(show.getPerUserLimit());
 		}
 
@@ -114,6 +121,7 @@ public class ReservationService {
 		// Check all seat status
 		for (Seat seat : seats) {
 			if (seat.getStatus() != SeatStatus.AVAILABLE) {
+				reservationMetrics.seatTaken();
 				throw new SeatTakenException(seat.getSeatNumber());
 			}
 		}
@@ -150,6 +158,8 @@ public class ReservationService {
 		}
 
 		seatRepository.saveAll(seats);
+
+		reservationMetrics.reservationConfirmed();
 
 		// Return result
 		return new ReservationResponse(reservationId, showId, userId, requestedSeats, amount, "confirmed");

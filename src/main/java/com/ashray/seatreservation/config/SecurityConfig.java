@@ -27,7 +27,7 @@ public class SecurityConfig {
 				.exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint)
 						.accessDeniedHandler(accessDeniedHandler))
 				.authorizeHttpRequests(
-						auth -> auth.requestMatchers("/actuator/health/**").permitAll().anyRequest().authenticated())
+						auth -> auth.requestMatchers("/actuator/**").permitAll().anyRequest().authenticated())
 				.addFilterBefore(bearerTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
