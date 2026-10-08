@@ -13,9 +13,6 @@ out/
 *.war
 *.ear
 
-# Maven wrapper - keep mvnw and wrapper jar; ignore temporary generated wrapper properties
-/.mvn/wrapper/maven-wrapper.properties
-
 # === Eclipse / STS ===
 .classpath
 .project
